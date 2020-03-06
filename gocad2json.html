@@ -1,0 +1,142 @@
+<html>
+
+<head>
+    <script>
+        var GOCAD = new Array();
+
+        function download(filename, text) {
+            var pom = document.createElement('a');
+            pom.setAttribute('href', 'data:text/plain;charset=binary,' + encodeURIComponent(text));
+            pom.setAttribute('download', filename);
+
+            if (document.createEvent) {
+                var event = document.createEvent('MouseEvents');
+                event.initEvent('click', true, true);
+                pom.dispatchEvent(event);
+            } else {
+                pom.click();
+            }
+        }
+
+        var convert2gocad = function (event) {
+            var input = event.target;
+            var reader = new FileReader();
+            reader.onload = function () {
+                var text = reader.result;
+                var test = text.split(/[\r\n]+/g);
+                var object = {
+                    name: "",
+                    color: "",
+                    vertices: [],
+                    wref: {
+                        x: 0,
+                        y: 0,
+                        z: 0
+                    },
+                    marker: [],
+                    path: [],
+                    type: "",
+                    segments: [],
+                    faces: []
+                };
+                test.forEach(line => {
+
+                    if (line.includes("GOCAD ")) object.type = line.split(" ")[1];
+                    if (line.startsWith("name:")) object.name = line.split(": ")[1];
+                    if (line.includes("*atoms*color:")) object.color = line.split(": ")[1];
+                    if (line.includes("*solid*color:")) object.color = line.split(": ")[1];
+                    if (line.includes("*line*color:")) object.color = line.split(": ")[1];
+
+                    if (line.includes("VRTX")) {
+                        let vert = {
+                            x: line.split(" ")[2],
+                            y: line.split(" ")[3],
+                            z: line.split(" ")[4]
+                        }
+                        object.vertices.push(vert);
+                    }
+                    if (line.includes("PATH ")) {
+                        let path = {
+                            md: line.split(" ")[1],
+                            dx: line.split(" ")[2],
+                            dy: line.split(" ")[3],
+                            dz: line.split(" ")[4]
+                        }
+                        object.path.push(path);
+                    }
+                    if (line.includes("WREF")) {
+                        let vert = {
+                            x: line.split(" ")[1],
+                            y: line.split(" ")[2],
+                            z: line.split(" ")[3]
+                        }
+                        object.wref.x = vert.x;
+                        object.wref.y = vert.y;
+                        object.wref.z = vert.z;
+                    }
+                    if (line.includes("TRGL")) {
+                        let trgl = {
+                            a: line.split(" ")[1],
+                            b: line.split(" ")[2],
+                            c: line.split(" ")[3]
+                        }
+                        object.faces.push(trgl);
+                    }
+                    if (line.includes("SEG")) {
+                        let seg = {
+                            a: line.split(" ")[1],
+                            b: line.split(" ")[2]
+                        }
+                        object.segments.push(seg);
+                    }
+                    // if marker names contain a space, GOCAD puts them in quotes ... we have to handle both cases here
+                    if (line.includes("MRKR") && line.includes('"')) {
+                        let mrkr = {
+                            name: line.split('"')[1],
+                            MD: line.split("  ")[2].slice(0, -1)
+                        }
+                        object.marker.push(mrkr);
+                    }
+                    if (line.includes("MRKR") && !line.includes('"')) {
+                        let mrkr = {
+                            name: line.split(" ")[1],
+                            MD: line.split("  ")[1].slice(0, -1)
+                        }
+                        object.marker.push(mrkr);
+                    }
+                    if (line == "END") {
+                        GOCAD.push(object);
+                        console.log(object);
+                        object = {
+                            name: "",
+                            color: "",
+                            vertices: [],
+                            wref: {
+                                x: 0,
+                                y: 0,
+                                z: 0
+                            },
+                            marker: [],
+                            path: [],
+                            type: "",
+                            segments: [],
+                            faces: []
+                        };
+                    }
+
+
+                });
+
+                download("output.json", JSON.stringify(GOCAD));
+            };
+            reader.readAsText(input.files[0]);
+        };
+    </script>
+</head>
+
+<body>
+    GOCAD ASCII file:
+    <input type='file' accept='' onchange='convert2gocad(event)'><br><br>
+</body>
+
+</html>
